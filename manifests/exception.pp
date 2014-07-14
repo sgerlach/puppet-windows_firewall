@@ -8,6 +8,7 @@
 #   [*action]           - Specifies what Windows Firewall with Advanced Security does to filter network packets that match the criteria specified in this rule.
 #   [*enabled]          - Specifies whether the rule is currently enabled.
 #   [*protocol]         - Specifies that network packets with a matching IP protocol match this rule.
+#   [*remote_ip]        - Specifies remote hosts that can use this rule.
 #   [*local_port]       - Specifies that network packets with matching IP port numbers matched by this rule.
 #   [*display_name]     - Specifies the rule name assigned to the rule that you want to display
 #   [*description]      - Provides information about the firewall rule.
@@ -27,6 +28,7 @@
 #     enabled      => 'yes',
 #     protocol     => 'TCP',
 #     local_port   => '5985',
+#     remote_ip    => '10.0.0.1,10.0.0.2'
 #     program      => undef,
 #     display_name => 'Windows Remote Management HTTP-In',
 #     description  => 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]',
@@ -51,6 +53,7 @@ define windows_firewall::exception(
   $enabled = 'yes',
   $protocol = '',
   $local_port = '',
+  $remote_ip = '',
   $program = undef,
   $display_name = '',
   $description = '',
@@ -70,14 +73,14 @@ define windows_firewall::exception(
       }
       $fw_command = 'portopening'
       validate_re($protocol,['^(TCP|UDP|ICMPv(4|6))$'])
-      if $protocol =~ /IMVPc(4|6)/ {
+      if $protocol =~ /ICMPv(4|6)/ {
         $allow_context = "protocol=${protocol}"
         if $local_port != '' {
           notify{"Setting for parameter local_port is ignored because of porotcol ${protocol}":}
         }
       } else {
         $allow_context = "protocol=${protocol} ${port_param}=${local_port}"
-        validate_re($local_port,['[0-9]{1,5]'])
+        validate_re($local_port,['(any|[0-9]{1,5})'])
       }
     } else {
       $fw_command = 'allowedprogram'
@@ -124,7 +127,7 @@ define windows_firewall::exception(
         $netsh_command = "C:\\Windows\\System32\\netsh.exe firewall ${fw_action} ${fw_command} name=\"${display_name}\" mode=${mode} ${allow_context}"
       }
       default: {
-        $netsh_command = "C:\\Windows\\System32\\netsh.exe advfirewall firewall ${fw_action} rule name=\"${display_name}\" description=\"${description}\" dir=${direction} action=${action} enable=${enabled} ${allow_context}"
+        $netsh_command = "C:\\Windows\\System32\\netsh.exe advfirewall firewall ${fw_action} rule name=\"${display_name}\" description=\"${description}\" dir=${direction} action=${action} enable=${enabled} ${allow_context} remoteip=\"${remote_ip}\""
       }
     }
 
